@@ -2,121 +2,198 @@ package com.newapp.interconnectapp;
 
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
 
 import javax.swing.*;
+import java.io.FileReader;
 import java.io.FileWriter;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Random;
 
 public class Message {
+    public static final ArrayList<String> SENT_MESSAGE = new ArrayList<>();
+    public static final ArrayList<String> DISREGARDED_MESSAGES = new ArrayList<>();
+    public static final ArrayList<String> STORED_MESSAGES = new ArrayList<>();
+    public static final ArrayList<String> MESSAGE_HASH = new ArrayList<>();
+    public static final ArrayList<String> MESSAGE_ID = new ArrayList<>();
+    public static final ArrayList<String> recipients = new ArrayList<>();
+    public static final ArrayList<String> storedRecipients = new ArrayList<>();
     private static int totalMessages = 0;
-    private static final ArrayList<JSONObject> messages = new ArrayList<>();
-    private final String messageID;
+
+    private final String sender;
     private final String recipient;
     private final String content;
+    private final String messageID;
     private final String messageHash;
 
-    public Message(String recipient, String content) {
-        this.messageID = generateMessageID();
+    public Message(String sender, String recipient, String content) {
+        this.sender = sender;
         this.recipient = recipient;
         this.content = content;
+        this.messageID = generateMessageID();
         this.messageHash = createMessageHash();
     }
 
     private String generateMessageID() {
-        return String.format("%010d", new Random().nextInt(1_000_000_000));
+        // Generate a unique message ID based on the current totalMessages
+        return String.format("ID%d", totalMessages + 1);
     }
 
-    // Validate that Message ID is 10 characters or less
-    public boolean checkMessageID() {
-        return this.messageID.length() <= 10;
-    }
-
-    
     public boolean checkRecipientCell() {
-    
-    return recipient != null && recipient.startsWith("+27") && recipient.length() == 12 && recipient.substring(3).matches("\\d{9}");
-}
+        return recipient != null && recipient.startsWith("+27") && recipient.length() == 12;
+    }
 
-    
+    public boolean checkMessageID() {
+        return messageID.length() <= 10;
+    }
 
-    
     public String createMessageHash() {
         String[] words = content.split("\\s+");
-        String firstWord = words.length > 0 ? words[0] : "";
-        String lastWord = words.length > 1 ? words[words.length - 1] : firstWord;
-        return (messageID.substring(0, 2) + ":" + (totalMessages + 1) + ":" + firstWord + lastWord).toUpperCase();
+        String first = words.length > 0 ? words[0] : "";
+        String last = words.length > 1 ? words[words.length - 1] : first;
+        return (messageID + ":" + (totalMessages + 1) + ":" + first + last).toUpperCase();
     }
 
-    // Sends message with 3 user options
     public String sendMessage() {
         if (content.length() > 250) {
-            return "Please enter a message less than 250 characters.";
+            return "Message too long.";
         }
 
-        int option = JOptionPane.showOptionDialog(null,
-                "Choose an option for this message:",
-                "Send Message",
+        String[] options = {"Send", "Disregard", "Store"};
+        int choice = JOptionPane.showOptionDialog(null,
+                "Choose an option:",
+                "Message",
                 JOptionPane.DEFAULT_OPTION,
                 JOptionPane.INFORMATION_MESSAGE,
-                null,
-                new String[]{"Send Message", "Disregard Message", "Store Message to Send Later"},
-                "Send Message");
+                null, options, options[0]);
 
-        if (option == 0) {
-            storeMessage();
-            totalMessages++;
-            JOptionPane.showMessageDialog(null,
-                    "Message Details:\n\n" +
-                            "Message ID: " + messageID + "\n" +
-                            "Message Hash: " + messageHash + "\n" +
-                            "Recipient: " + recipient + "\n" +
-                            "Message: " + content);
-            return "Message sent.";
-        } else if (option == 1) {
-            return "Message disregarded.";
-        } else if (option == 2) {
-            storeMessage();
-            return "Message stored to send later.";
+        switch (choice) {
+            case 0 -> {
+                SENT_MESSAGE.add(content);
+                recipients.add(recipient);
+                MESSAGE_ID.add(messageID);
+                MESSAGE_HASH.add(messageHash);
+                totalMessages++;
+                return "Message sent.";
+            }
+            case 1 -> {
+                DISREGARDED_MESSAGES.add(content);
+                return "Message disregarded.";
+            }
+            case 2 -> {
+                STORED_MESSAGES.add(content);
+                storedRecipients.add(recipient);
+                MESSAGE_ID.add(messageID);
+                MESSAGE_HASH.add(messageHash);
+                storeMessage();
+                return "Message stored.";
+            }
         }
-
         return "No action taken.";
     }
 
-    //  to JSON and memory
     public void storeMessage() {
-        JSONObject messageObject = new JSONObject();
-        messageObject.put("MessageID", messageID);
-        messageObject.put("MessageHash", messageHash);
-        messageObject.put("Recipient", recipient);
-        messageObject.put("Message", content);
+        JSONArray messages = new JSONArray();
+        try (FileReader reader = new FileReader("messages.json")) {
+            JSONParser parser = new JSONParser();
+            messages = (JSONArray) parser.parse(reader);
+        } catch (Exception ignored) {}
 
-        messages.add(messageObject);
+        JSONObject obj = new JSONObject();
+        obj.put("Message", content);
+        obj.put("Recipient", recipient);
+        obj.put("MessageID", messageID);
+        obj.put("MessageHash", messageHash);
+        messages.add(obj);
 
-        try (FileWriter file = new FileWriter("messages.json")) {
-            JSONArray messageArray = new JSONArray();
-            messageArray.addAll(messages);
-            file.write(messageArray.toJSONString());
-        } catch (IOException e) {
-            JOptionPane.showMessageDialog(null, "Error saving message to file.");
+        try (FileWriter writer = new FileWriter("messages.json")) {
+            writer.write(messages.toJSONString());
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(null, "Failed to write message.");
         }
     }
 
-    
-    public static String printMessages() {
+    public static void loadStoredMessages() {
+        try (FileReader reader = new FileReader("messages.json")) {
+            JSONParser parser = new JSONParser();
+            JSONArray data = (JSONArray) parser.parse(reader);
+
+            for (Object obj : data) {
+                JSONObject msg = (JSONObject) obj;
+                String message = (String) msg.get("Message");
+                String recipient = (String) msg.get("Recipient");
+                String id = (String) msg.get("MessageID");
+                String hash = (String) msg.get("MessageHash");
+
+                STORED_MESSAGES.add(message);
+                storedRecipients.add(recipient);
+                MESSAGE_ID.add(id);
+                MESSAGE_HASH.add(hash);
+            }
+        } catch (Exception ignored) {}
+    }
+
+    public static String findLongestMessage() {
+        String longest = "";
+        for (String msg : SENT_MESSAGE) if (msg.length() > longest.length()) longest = msg;
+        for (String msg : STORED_MESSAGES) if (msg.length() > longest.length()) longest = msg;
+        for (String msg : DISREGARDED_MESSAGES) if (msg.length() > longest.length()) longest = msg;
+        return longest;
+    }
+
+    public static String searchByMessageID(String id) {
+        for (int i = 0; i < MESSAGE_ID.size(); i++) {
+            if (MESSAGE_ID.get(i).equals(id)) {
+                if (i < SENT_MESSAGE.size()) return SENT_MESSAGE.get(i);
+                else return STORED_MESSAGES.get(i - SENT_MESSAGE.size());
+            }
+        }
+        return "Message ID not found.";
+    }
+
+    public static String searchByRecipient(String recipient) {
         StringBuilder sb = new StringBuilder();
-        for (JSONObject msg : messages) {
-            sb.append("Message ID: ").append(msg.get("MessageID")).append("\n")
-              .append("Message Hash: ").append(msg.get("MessageHash")).append("\n")
-              .append("Recipient: ").append(msg.get("Recipient")).append("\n")
-              .append("Message: ").append(msg.get("Message")).append("\n\n");
+        for (int i = 0; i < recipients.size(); i++) {
+            if (recipients.get(i).equals(recipient)) sb.append(SENT_MESSAGE.get(i)).append("\n");
+        }
+        for (int i = 0; i < storedRecipients.size(); i++) {
+            if (storedRecipients.get(i).equals(recipient)) sb.append(STORED_MESSAGES.get(i)).append("\n");
         }
         return sb.toString();
     }
 
-    
-    public static int returnTotalMessages() {
-        return totalMessages;
+    public static boolean deleteByHash(String hash) {
+        for (int i = 0; i < MESSAGE_HASH.size(); i++) {
+            if (MESSAGE_HASH.get(i).equals(hash)) {
+                MESSAGE_HASH.remove(i);
+                MESSAGE_ID.remove(i);
+                if (i < SENT_MESSAGE.size()) {
+                    SENT_MESSAGE.remove(i);
+                    recipients.remove(i);
+                } else {
+                    int idx = i - SENT_MESSAGE.size();
+                    STORED_MESSAGES.remove(idx);
+                    storedRecipients.remove(idx);
+                }
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public static String generateReport() {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < SENT_MESSAGE.size(); i++) {
+            sb.append("Message Hash: ").append(MESSAGE_HASH.get(i)).append("\n")
+              .append("Recipient: ").append(recipients.get(i)).append("\n")
+              .append("Message: ").append(SENT_MESSAGE.get(i)).append("\n\n");
+        }
+        for (int i = 0; i < STORED_MESSAGES.size(); i++) {
+            sb.append("Message Hash: ").append(MESSAGE_HASH.get(i + SENT_MESSAGE.size())).append("\n")
+              .append("Recipient: ").append(storedRecipients.get(i)).append("\n")
+              .append("Message: ").append(STORED_MESSAGES.get(i)).append("\n\n");
+        }
+        return sb.toString();
     }
 }
+// OpenAI ChatGPT version4 "how to store messages."Available at https://chatgpt.com/ Accessed 20 June 2025

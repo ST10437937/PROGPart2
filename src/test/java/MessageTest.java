@@ -1,96 +1,89 @@
+package com.newapp.interconnectapp;
+
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 public class MessageTest {
 
-    @Test
-    public void testMessageLengthSuccess() {
-        String message = "Hi Mike, can you join us for dinner tonight?";
-        assertTrue(message.length() <= 250);
+    @BeforeEach
+    public void setup() {
+        // Clear all parallel arrays
+        Message.SENT_MESSAGE.clear();
+        Message.DISREGARDED_MESSAGES.clear();
+        Message.STORED_MESSAGES.clear();
+        Message.MESSAGE_HASH.clear();
+        Message.MESSAGE_ID.clear();
+        Message.recipients.clear();
+        Message.storedRecipients.clear();
+
+        //  test data
+        Message.SENT_MESSAGE.add("Did you get the cake?");
+        Message.recipients.add("+27834557896");
+        Message.MESSAGE_ID.add("ID1");
+        Message.MESSAGE_HASH.add("HASH1");
+
+        Message.SENT_MESSAGE.add("it is dinner time!");
+        Message.recipients.add("0838884567");
+        Message.MESSAGE_ID.add("ID2");
+        Message.MESSAGE_HASH.add("HASH2");
+
+        Message.STORED_MESSAGES.add("where are you? you are late! i have asked you to be on time.");
+        Message.storedRecipients.add("+27838884567");
+        Message.MESSAGE_ID.add("ID3");
+        Message.MESSAGE_HASH.add("HASH3");
+
+        Message.STORED_MESSAGES.add("Ok i am leaving without you");
+        Message.storedRecipients.add("+27838884567");
+        Message.MESSAGE_ID.add("ID4");
+        Message.MESSAGE_HASH.add("HASH4");
+
+        Message.DISREGARDED_MESSAGES.add("Yohooooo, i am at your gate");
     }
 
     @Test
-    public void testMessageLengthFailure() {
-        String longMessage = "a".repeat(260);
-        int overLimit = longMessage.length() - 250;
-        assertEquals("Message exceeds 250 characters by " + overLimit + ", please reduce size.",
-                getMessageLengthError(longMessage));
+    public void SENT_MESSAGE_ARRAY_CORRECTLY_POPULATED() {
+        String actual = String.join(", ", Message.SENT_MESSAGE);
+        String expected = "Did you get the cake?, it is dinner time!";
+        assertEquals(expected, actual);
     }
 
     @Test
-    public void testValidPhoneNumber() {
-        String number = "+27718693002";
-        assertTrue(isValidPhoneNumber(number));
+    public void DISPLAY_THE_LONGEST_MESSAGE() {
+        String expected = "where are you? you are late! i have asked you to be on time.";
+        assertEquals(expected, Message.findLongestMessage());
     }
 
     @Test
-    public void testInvalidPhoneNumber() {
-        String number = "08575975889";
-        assertEquals("Cell phone number is incorrectly formatted or does not contain an international code. Please correct the number and try again.",
-                getPhoneNumberError(number));
+    public void SEARCH_FOR_messageID() {
+        String expected = "it is dinner time!";
+        String actual = Message.searchByMessageID("ID2");
+        assertEquals(expected, actual);
     }
 
     @Test
-    public void testMessageHashGeneration() {
-        String hash = generateMessageHash("Hi Mike, can you join us for dinner tonight?");
-        assertNotNull(hash);
+    public void SEARCH_ALL_MESSAGES_SENT_OR_STORED_REGARDING_A_PARTICULAR_RECIPIENT() {
+        String actual = Message.searchByRecipient("+27838884567");
+        String expected = "where are you? you are late! i have asked you to be on time.\nOk i am leaving without you\n";
+        assertEquals(expected, actual);
     }
 
     @Test
-    public void testMessageIdGenerated() {
-        String messageId = generateMessageId();
-        assertTrue(messageId.startsWith("MSG-") && messageId.length() > 4);
+    public void DELETE_MESSAGE_USING_MESSAGE_HASH() {
+        assertTrue(Message.deleteByHash("HASH3"));
+        assertFalse(Message.MESSAGE_HASH.contains("HASH3"));
     }
 
     @Test
-    public void testSendMessageOption() {
-        String option = "Send";
-        assertEquals("Message successfully sent.", handleSendOption(option));
-    }
-
-    @Test
-    public void testDiscardMessageOption() {
-        String option = "Disregard Message";
-        assertEquals("Press 0 to delete message.", handleSendOption(option));
-    }
-
-    @Test
-    public void testStoreMessageOption() {
-        String option = "Store Message";
-        assertEquals("Message successfully stored.", handleSendOption(option));
-    }
-
-    // ----- Mock methods for demonstration below -----
-
-    private String getMessageLengthError(String msg) {
-        int length = msg.length();
-        return length > 250 ? "Message exceeds 250 characters by " + (length - 250) + ", please reduce size." : "Message ready to send.";
-    }
-
-    private boolean isValidPhoneNumber(String number) {
-        return number.startsWith("+") && number.length() >= 11;
-    }
-
-    private String getPhoneNumberError(String number) {
-        return isValidPhoneNumber(number) ? "Cell phone number successfully captured."
-                : "Cell phone number is incorrectly formatted or does not contain an international code. Please correct the number and try again.";
-    }
-
-    private String generateMessageHash(String message) {
-        return Integer.toHexString(message.hashCode()); // Mock hash
-    }
-
-    private String generateMessageId() {
-        return "MSG-" + System.currentTimeMillis();
-    }
-
-    private String handleSendOption(String option) {
-        return switch (option) {
-            case "Send" -> "Message successfully sent.";
-            case "Disregard Message" -> "Press 0 to delete message.";
-            case "Store Message" -> "Message successfully stored.";
-            default -> "Unknown option.";
-        };
+    public void DISPLAY_REPORT() {
+        String expected =
+                "Message Hash: HASH1\nRecipient: +27834557896\nMessage: Did you get the cake?\n\n" +
+                "Message Hash: HASH2\nRecipient: 0838884567\nMessage: it is dinner time!\n\n" +
+                "Message Hash: HASH3\nRecipient: +27838884567\nMessage: where are you? you are late! i have asked you to be on time.\n\n" +
+                "Message Hash: HASH4\nRecipient: +27838884567\nMessage: Ok i am leaving without you\n\n";
+        String actual = Message.generateReport();
+        assertEquals(expected, actual);
     }
 }
-
+// OpenAI, 2025. ChatGPT version 4. Avaialble at :https://chatgpt.com/ Accessed 24 June 2025
