@@ -124,3 +124,4 @@ public class MessageApp {
         }
     }
 }
+// stack overflow how to declare ArrayList. 2025 avaliable at : https://stackoverflow.com/questions/38498620/how-to-declare-arraylist-identifier-expected . Accessed 24 June 2025
