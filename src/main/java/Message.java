@@ -197,3 +197,4 @@ public class Message {
     }
 }
 // OpenAI ChatGPT version4 "how to store messages."Available at https://chatgpt.com/ Accessed 20 June 2025
+// stack overflow. JSON file into memory. Avaliable at : https://stackoverflow.com/questions/10011011/how-do-i-read-a-json-file-into-server-memory . Accessed 20 June 2025
